@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Report an Issue</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#262b36; --text:#e7eaf0;
+    --muted:#9aa4b2; --accent:#4f8cff; --accent-2:#2f6fe0; --ok:#39d98a; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:560px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:28px}
+  h1{margin:0 0 4px;font-size:20px}
+  p.sub{margin:0 0 22px;color:var(--muted);font-size:13px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+  input,textarea,select{width:100%;background:#0f1218;border:1px solid var(--line);
+    color:var(--text);border-radius:10px;padding:11px 12px;font-size:14px;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:84px}
+  .row{display:flex;gap:12px}
+  .row>div{flex:1}
+  button{width:100%;margin-top:22px;background:var(--accent);color:#fff;border:0;
+    border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer}
+  button:hover{background:var(--accent-2)}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .msg{margin-top:16px;font-size:14px;padding:11px 12px;border-radius:10px;display:none}
+  .msg.ok{display:block;background:rgba(57,217,138,.12);color:var(--ok);border:1px solid rgba(57,217,138,.3)}
+  .msg.err{display:block;background:rgba(255,107,107,.12);color:var(--err);border:1px solid rgba(255,107,107,.3)}
+  .msg a{color:inherit;font-weight:600}
+  .drop{border:1.5px dashed var(--line);border-radius:10px;padding:16px;text-align:center;
+    color:var(--muted);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover{border-color:var(--accent)}
+  .drop.over{border-color:var(--accent);background:rgba(79,140,255,.08)}
+  .drop.filled{border-style:solid;color:var(--text)}
+  .drop .rm{color:var(--err);font-weight:600;margin-left:8px;cursor:pointer}
+  .drop input[type=file]{display:none}
+  /* ---- deadline picker ---- */
+  .dl-wrap{position:relative}
+  .dl-trigger{width:100%;margin:0;background:#0f1218;border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:11px 12px;font-size:14px;text-align:left;cursor:pointer;
+    display:flex;align-items:center;justify-content:space-between;font-weight:400}
+  .dl-trigger:hover{background:#0f1218;border-color:var(--accent)}
+  .dl-trigger .ph{color:var(--muted)}
+  .dl-pop{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;background:#141821;
+    border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 16px 44px rgba(0,0,0,.55);display:none}
+  .dl-pop.open{display:block}
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .cal-head button{width:32px;height:32px;margin:0;padding:0;background:none;border:1px solid var(--line);
+    color:var(--text);border-radius:8px;font-size:16px;cursor:pointer;line-height:1}
+  .cal-head button:hover{border-color:var(--accent);background:rgba(79,140,255,.12)}
+  .cal-title{font-size:14px;font-weight:600}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal-grid .wd{font-size:11px;color:var(--muted);text-align:center;padding:4px 0}
+  .cal-grid .day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;
+    border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .12s}
+  .cal-grid .day:hover{background:rgba(79,140,255,.16)}
+  .cal-grid .day.today{border-color:var(--muted)}
+  .cal-grid .day.sel{background:var(--accent);color:#fff;font-weight:600}
+  .cal-grid .day.empty{cursor:default}
+  .time-row{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .time-row label{margin:0;font-size:12px;color:var(--muted);flex:1}
+  .time-row select{width:auto;padding:8px 10px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip-b{background:#0f1218;border:1px solid var(--line);color:var(--muted);border-radius:20px;
+    padding:5px 11px;font-size:12px;cursor:pointer}
+  .chip-b:hover{border-color:var(--accent);color:var(--text)}
+  .pop-foot{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+  .pop-foot button{margin:0;width:auto;padding:8px 18px;font-size:13px;border-radius:8px}
+  .pop-foot .ghost{background:none;border:1px solid var(--line);color:var(--muted)}
+  .pop-foot .ghost:hover{border-color:var(--err);color:var(--err)}
+</style>
+</head>
+<body>
+  <div class="card" id="loginGate" style="display:none;max-width:340px">
+    <h1>Sign in</h1>
+    <p class="sub">Enter the username and password you were given.</p>
+    <label for="lgUser">Username</label>
+    <input id="lgUser" autocomplete="username" />
+    <label for="lgPass">Password</label>
+    <input id="lgPass" type="password" autocomplete="current-password" />
+    <button id="lgBtn">Sign in</button>
+    <div class="msg" id="lgMsg"></div>
+  </div>
+
+  <div class="card" id="appCard" style="display:none">
+    <h1>Report an Issue</h1>
+    <p class="sub">Logs to the team's GitHub issues and pings our Telegram channel. &nbsp;·&nbsp; <a href="/dashboard.html" style="color:#4f8cff">View dashboard →</a></p>
+
+    <label for="type">Type</label>
+    <select id="type">
+      <option value="Bug">🐞 Bug</option>
+      <option value="Task">✅ Task</option>
+      <option value="Case">📋 Case</option>
+    </select>
+
+    <label for="title">Title *</label>
+    <input id="title" placeholder="Short summary of the issue" />
+
+    <label for="description">Details</label>
+    <textarea id="description" placeholder="Steps to reproduce, expected vs. actual, links…"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="reporter">Your name *</label>
+        <select id="reporter"></select>
+        <div id="reportingAs" style="display:none;padding:11px 12px;background:#0f1218;border:1px solid var(--line);border-radius:10px;font-size:14px"></div>
+      </div>
+      <div>
+        <label for="assignee">Assign to</label>
+        <select id="assignee"></select>
+      </div>
+    </div>
+
+    <label>Deadline (optional — enables reminder)</label>
+    <div class="dl-wrap">
+      <button type="button" class="dl-trigger" id="dlTrigger">
+        <span class="ph" id="dlLabel">📅 &nbsp;Set a deadline…</span>
+        <span id="dlChevron">▾</span>
+      </button>
+      <div class="dl-pop" id="dlPop">
+        <div class="cal-head">
+          <button type="button" id="prevM">‹</button>
+          <span class="cal-title" id="calTitle"></span>
+          <button type="button" id="nextM">›</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="time-row">
+          <label>Time (24h)</label>
+          <select id="hour"></select>
+          <span style="color:var(--muted)">:</span>
+          <select id="minute"></select>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="pop-foot">
+          <button type="button" class="ghost" id="clearBtn">Clear</button>
+          <button type="button" id="doneBtn">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <label>Image (optional)</label>
+    <div class="drop" id="imgDrop">
+      <span id="imgText">Drag an image here, or click to choose</span>
+      <input type="file" id="imgInput" accept="image/*" />
+    </div>
+
+    <label>Voice note (optional)</label>
+    <div class="drop" id="voiceDrop">
+      <span id="voiceText">Drag an audio file here, or click to choose</span>
+      <input type="file" id="voiceInput" accept="audio/*" />
+    </div>
+
+    <label>Log file (optional)</label>
+    <div class="drop" id="logDrop">
+      <span id="logText">Drag a log file here, or click to choose</span>
+      <input type="file" id="logInput" accept=".log,.txt,.json,.csv,.xml,.yml,.yaml,.zip,.gz,text/*" />
+    </div>
+
+    <button id="submit">Send</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+<script>
+  // ---- edit this list to change the people ----
+  const PEOPLE = ["Mohamed", "Kazbek", "Sergei", "Berg"];
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const WD = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, "0");
+
+  // ---- auth ----
+  const TOKEN_KEY="ir_token", NAME_KEY="ir_name";
+  let AUTH_REQUIRED=false, ME="";
+  const getToken=()=>localStorage.getItem(TOKEN_KEY)||"";
+  const authHeaders=()=>{ const t=getToken(); return t?{Authorization:"Bearer "+t}:{}; };
+  function showGate(show){ $("loginGate").style.display=show?"block":"none"; $("appCard").style.display=show?"none":"block"; }
+  async function apiFetch(url, opts={}){
+    const headers=Object.assign({}, opts.headers||{}, authHeaders());
+    const res=await fetch(url,{...opts, headers});
+    if(res.status===401){ localStorage.removeItem(TOKEN_KEY); showGate(true); throw new Error("Session expired — please sign in again."); }
+    return res;
+  }
+
+  function fill(sel, items, placeholder, valueFn, labelFn){
+    const el = $(sel);
+    el.innerHTML = "";
+    if(placeholder){ const o=document.createElement("option"); o.value=""; o.textContent=placeholder; el.appendChild(o); }
+    items.forEach((it,i)=>{
+      const o=document.createElement("option");
+      o.value = valueFn ? valueFn(it,i) : it;
+      o.textContent = labelFn ? labelFn(it,i) : it;
+      el.appendChild(o);
+    });
+  }
+
+  fill("reporter", PEOPLE, "Select…");
+  fill("assignee", PEOPLE, "(optional)");
+  fill("hour", Array.from({length:24},(_,i)=>i), null, (n)=>n, (n)=>pad(n));
+  fill("minute", Array.from({length:12},(_,i)=>i*5), null, (n)=>n, (n)=>pad(n));
+
+  // ---- interactive calendar deadline picker ----
+  const todayD = new Date();
+  let viewY = todayD.getFullYear();
+  let viewM = todayD.getMonth();
+  let selDate = null;          // {y, m, d}
+  let selHour = 9, selMin = 0; // default 09:00
+  $("hour").value = "9";
+  $("minute").value = "0";
+
+  function renderCal(){
+    $("calTitle").textContent = `${MONTHS[viewM]} ${viewY}`;
+    const first = new Date(viewY, viewM, 1).getDay();
+    const days = new Date(viewY, viewM+1, 0).getDate();
+    let html = WD.map(w=>`<div class="wd">${w}</div>`).join("");
+    for(let i=0;i<first;i++) html += `<div class="day empty"></div>`;
+    for(let d=1; d<=days; d++){
+      const isToday = todayD.getFullYear()===viewY && todayD.getMonth()===viewM && todayD.getDate()===d;
+      const isSel = selDate && selDate.y===viewY && selDate.m===viewM && selDate.d===d;
+      html += `<div class="day${isToday?' today':''}${isSel?' sel':''}" data-d="${d}">${d}</div>`;
+    }
+    $("calGrid").innerHTML = html;
+    $("calGrid").querySelectorAll(".day[data-d]").forEach(c=>c.addEventListener("click",()=>{
+      selDate = { y:viewY, m:viewM, d:Number(c.dataset.d) };
+      renderCal(); updateLabel();
+    }));
+  }
+
+  function updateLabel(){
+    const lbl = $("dlLabel");
+    if(selDate){
+      const dt = new Date(selDate.y, selDate.m, selDate.d, selHour, selMin);
+      lbl.textContent = dt.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"}) + `  ·  ${pad(selHour)}:${pad(selMin)}`;
+      lbl.classList.remove("ph");
+    } else {
+      lbl.textContent = "📅  Set a deadline…";
+      lbl.classList.add("ph");
+    }
+  }
+
+  // quick time chips
+  const CHIPS = [["09:00",9,0],["12:00",12,0],["17:00",17,0],["18:00 EOD",18,0]];
+  $("chips").innerHTML = CHIPS.map((c,i)=>`<span class="chip-b" data-i="${i}">${c[0]}</span>`).join("");
+  $("chips").querySelectorAll(".chip-b").forEach(el=>el.addEventListener("click",()=>{
+    const c = CHIPS[Number(el.dataset.i)];
+    selHour = c[1]; selMin = c[2];
+    $("hour").value = String(selHour); $("minute").value = String(selMin);
+    updateLabel();
+  }));
+
+  $("dlTrigger").addEventListener("click", e=>{ e.stopPropagation(); $("dlPop").classList.toggle("open"); });
+  $("dlPop").addEventListener("click", e=> e.stopPropagation());
+  document.addEventListener("click", ()=> $("dlPop").classList.remove("open"));
+  $("prevM").addEventListener("click", ()=>{ viewM--; if(viewM<0){viewM=11;viewY--;} renderCal(); });
+  $("nextM").addEventListener("click", ()=>{ viewM++; if(viewM>11){viewM=0;viewY++;} renderCal(); });
+  $("hour").addEventListener("change", ()=>{ selHour=Number($("hour").value); updateLabel(); });
+  $("minute").addEventListener("change", ()=>{ selMin=Number($("minute").value); updateLabel(); });
+  $("clearBtn").addEventListener("click", ()=>{ selDate=null; renderCal(); updateLabel(); $("dlPop").classList.remove("open"); });
+  $("doneBtn").addEventListener("click", ()=> $("dlPop").classList.remove("open"));
+  renderCal(); updateLabel();
+
+  function buildDeadline(){
+    if(!selDate) return null;
+    return new Date(selDate.y, selDate.m, selDate.d, selHour, selMin).toISOString();
+  }
+
+  // ---- attachments ----
+  let imgData = null, voiceData = null, logData = null;
+
+  function readAsBase64(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(",")[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  function compressImage(file, maxDim=1600, quality=0.8){
+    return new Promise((res,rej)=>{
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        let {width,height} = img;
+        if(width>maxDim || height>maxDim){
+          const s = maxDim/Math.max(width,height);
+          width = Math.round(width*s); height = Math.round(height*s);
+        }
+        const c = document.createElement("canvas");
+        c.width=width; c.height=height;
+        c.getContext("2d").drawImage(img,0,0,width,height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL("image/jpeg",quality).split(",")[1]);
+      };
+      img.onerror = rej;
+      img.src = url;
+    });
+  }
+
+  function setupDrop(dropId, inputId, textId, kind){
+    const drop=$(dropId), input=$(inputId), text=$(textId);
+    drop.addEventListener("click",()=>input.click());
+    ["dragenter","dragover"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add("over");}));
+    ["dragleave","drop"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove("over");}));
+    drop.addEventListener("drop",ev=>{ if(ev.dataTransfer.files[0]) handle(ev.dataTransfer.files[0]); });
+    input.addEventListener("change",()=>{ if(input.files[0]) handle(input.files[0]); });
+
+    async function handle(file){
+      if(file.size > 8*1024*1024){ alert("File too large (max 8 MB)."); return; }
+      try{
+        let base64;
+        if(kind==="image" && file.type.startsWith("image/")) base64 = await compressImage(file);
+        else base64 = await readAsBase64(file);
+        const data = { name:file.name, mime: kind==="image"?"image/jpeg":file.type, base64 };
+        if(kind==="image") imgData=data; else if(kind==="voice") voiceData=data; else logData=data;
+        drop.classList.add("filled");
+        const objUrl = URL.createObjectURL(file);
+        let preview="";
+        if(kind==="image") preview=`<div style="margin-top:10px"><img src="${objUrl}" style="max-height:140px;max-width:100%;border-radius:8px" /></div>`;
+        else if(kind==="voice") preview=`<audio controls src="${objUrl}" style="width:100%;margin-top:10px"></audio>`;
+        text.innerHTML = `📎 ${file.name} <span class="rm">remove</span>${preview}`;
+        text.querySelectorAll("audio,img").forEach(elm=>elm.addEventListener("click",e=>e.stopPropagation()));
+        text.querySelector(".rm").addEventListener("click",(e)=>{
+          e.stopPropagation();
+          if(kind==="image") imgData=null; else if(kind==="voice") voiceData=null; else logData=null;
+          drop.classList.remove("filled");
+          input.value="";
+          text.textContent = kind==="image" ? "Drag an image here, or click to choose"
+            : kind==="voice" ? "Drag an audio file here, or click to choose"
+            : "Drag a log file here, or click to choose";
+        });
+      }catch(err){ alert("Could not read file: "+err.message); }
+    }
+  }
+  setupDrop("imgDrop","imgInput","imgText","image");
+  setupDrop("voiceDrop","voiceInput","voiceText","voice");
+  setupDrop("logDrop","logInput","logText","log");
+
+  // ---- submit ----
+  const btn=$("submit"), msg=$("msg");
+  function show(type,html){ msg.className="msg "+type; msg.innerHTML=html; }
+
+  async function uploadFile(data){
+    const res = await apiFetch("/api/upload",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ filename:data.name, mimeType:data.mime, dataBase64:data.base64 }),
+    });
+    const d = await res.json().catch(()=>({}));
+    if(res.status===501) return { skipped:true };
+    if(!res.ok) throw new Error(d.error || "Upload failed");
+    return { url:d.url };
+  }
+
+  btn.addEventListener("click", async () => {
+    const payload = {
+      type: $("type").value,
+      title: $("title").value.trim(),
+      description: $("description").value.trim(),
+      reporter: AUTH_REQUIRED ? ME : $("reporter").value,
+      assignee: $("assignee").value,
+      deadline: buildDeadline(),
+      attachments: [],
+    };
+    if(!payload.title || !payload.reporter){ show("err","Title and your name are required."); return; }
+
+    btn.disabled=true; msg.className="msg";
+    try{
+      let skippedDrive=false;
+      const toUpload = [];
+      if(imgData) toUpload.push({data:imgData, type:"image"});
+      if(voiceData) toUpload.push({data:voiceData, type:"voice"});
+      if(logData) toUpload.push({data:logData, type:"log"});
+
+      for(const item of toUpload){
+        btn.textContent="Uploading…";
+        const r = await uploadFile(item.data);
+        if(r.skipped){ skippedDrive=true; continue; }
+        payload.attachments.push({ name:item.data.name, url:r.url, type:item.type });
+      }
+
+      btn.textContent="Sending…";
+      const res = await apiFetch("/api/report",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || "Something went wrong");
+
+      let note = skippedDrive ? " (attachments skipped — Drive not configured)" : "";
+      show("ok", `Reported ✔${note} ${data.url ? `— <a href="${data.url}" target="_blank">view issue</a>` : ""}`);
+      $("title").value=""; $("description").value="";
+      selDate=null; updateLabel();
+      imgData=null; voiceData=null; logData=null;
+      $("imgDrop").classList.remove("filled"); $("voiceDrop").classList.remove("filled"); $("logDrop").classList.remove("filled");
+      $("imgText").textContent="Drag an image here, or click to choose";
+      $("voiceText").textContent="Drag an audio file here, or click to choose";
+      $("logText").textContent="Drag a log file here, or click to choose";
+    }catch(e){
+      show("err", e.message);
+    }finally{
+      btn.disabled=false; btn.textContent="Send";
+    }
+  });
+
+  // ---- login / boot ----
+  $("lgBtn").addEventListener("click", doLogin);
+  $("lgPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+  async function doLogin(){
+    const username=$("lgUser").value.trim(), password=$("lgPass").value;
+    if(!username||!password){ $("lgMsg").className="msg err"; $("lgMsg").textContent="Enter username and password."; return; }
+    $("lgBtn").disabled=true; $("lgBtn").textContent="Signing in…";
+    try{
+      const res=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
+      const d=await res.json();
+      if(!res.ok) throw new Error(d.error||"Login failed");
+      localStorage.setItem(TOKEN_KEY,d.token); localStorage.setItem(NAME_KEY,d.name);
+      ME=d.name; applyIdentity(); showGate(false);
+    }catch(e){ $("lgMsg").className="msg err"; $("lgMsg").textContent=e.message; }
+    finally{ $("lgBtn").disabled=false; $("lgBtn").textContent="Sign in"; }
+  }
+  function applyIdentity(){
+    if(AUTH_REQUIRED){
+      $("reporter").style.display="none";
+      $("reportingAs").style.display="block";
+      $("reportingAs").textContent="👤 "+ME;
+    }
+  }
+  async function boot(){
+    let cfg={authRequired:false};
+    try{ cfg=await fetch("/api/config").then(r=>r.json()); }catch{}
+    AUTH_REQUIRED=!!cfg.authRequired;
+    ME=localStorage.getItem(NAME_KEY)||"";
+    if(AUTH_REQUIRED && !getToken()){ showGate(true); return; }
+    applyIdentity(); showGate(false);
+  }
+  boot();
+</script>
+</body>
+</html>
